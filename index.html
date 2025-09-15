@@ -210,7 +210,7 @@
             </div>
             <div class="input-group">
                 <label for="volatility">VIX / Implied Volatility (%)</label>
-                <input type="number" id="volatility" step="0.01" value="12.85" readonly>
+                <input type="number" id="volatility" step="0.01" value="12.85">
             </div>
             <div class="input-group">
                 <label for="risk-free-rate">Risk-Free Rate (%)</label>
@@ -220,7 +220,7 @@
                 <label for="std-dev">Standard Deviations</label>
                 <input type="number" id="std-dev" step="0.1" value="1.0">
             </div>
-            <button class="refresh-btn" onclick="fetchLiveData()">Refresh Live Data</button>
+            <button class="refresh-btn" onclick="fetchSPYPrice()">Refresh SPY Price</button>
             <button class="update-btn" onclick="updateChart()">Update Chart</button>
         </div>
 
@@ -234,11 +234,14 @@
     </main>
 
     <footer>
-        <p>Built with Chart.js • Real-time data from Yahoo Finance API</p>
+        <p>Built with Chart.js • SPY data from Alpha Vantage API • <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color: rgba(255,255,255,0.9);">Get Free API Key</a></p>
     </footer>
 
     <script>
         let chart = null;
+        
+        // Add your Alpha Vantage API key here
+        const API_KEY = 'YOUR_API_KEY_HERE';
 
         // Trading days calculation functions
         function isWeekend(date) {
@@ -300,41 +303,61 @@
             return stockPrice * iv * std * Math.sqrt(dte / 365);
         }
 
-        // Fetch live data from Yahoo Finance API
-        async function fetchLiveData() {
+        // Fetch SPY price using Alpha Vantage API
+        async function fetchSPYPrice() {
             const statusEl = document.getElementById('status-message');
             const errorEl = document.getElementById('error-message');
             
+            if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
+                errorEl.textContent = 'Please add your Alpha Vantage API key to the code. Get a free key at https://www.alphavantage.co/support/#api-key';
+                errorEl.style.display = 'block';
+                return;
+            }
+
             try {
                 statusEl.style.display = 'block';
                 statusEl.className = 'status';
-                statusEl.textContent = 'Fetching live data from Yahoo Finance...';
+                statusEl.textContent = 'Fetching SPY price from Alpha Vantage...';
                 errorEl.style.display = 'none';
 
-                // Fetch SPY price
-                const spyResponse = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/SPY');
-                const spyData = await spyResponse.json();
-                const spyPrice = spyData.chart.result[0].meta.regularMarketPrice;
+                // Alpha Vantage API call
+                const spyUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=SPY&interval=1min&apikey=${API_KEY}`;
+                
+                const response = await fetch(spyUrl);
+                const data = await response.json();
 
-                // Fetch VIX data
-                const vixResponse = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX');
-                const vixData = await vixResponse.json();
-                const vixPrice = vixData.chart.result[0].meta.regularMarketPrice;
+                // Handle API errors
+                if (data['Error Message']) {
+                    throw new Error('Invalid API call. Please check your API key.');
+                }
+                
+                if (data['Note']) {
+                    throw new Error('API call frequency exceeded. Free tier: 5 calls/minute.');
+                }
 
-                // Update input fields
+                if (!data['Time Series (1min)']) {
+                    throw new Error('No SPY data received. Check your API key or try again later.');
+                }
+
+                // Get most recent SPY price
+                const timeSeries = data['Time Series (1min)'];
+                const timestamps = Object.keys(timeSeries).sort().reverse();
+                const latestTimestamp = timestamps[0];
+                const spyPrice = parseFloat(timeSeries[latestTimestamp]['4. close']);
+
+                // Update SPY price field
                 document.getElementById('stock-price').value = spyPrice.toFixed(2);
-                document.getElementById('volatility').value = vixPrice.toFixed(2);
 
                 statusEl.className = 'status success';
-                statusEl.textContent = `Live data updated: SPY $${spyPrice.toFixed(2)}, VIX ${vixPrice.toFixed(2)}%`;
+                statusEl.textContent = `SPY price updated: $${spyPrice.toFixed(2)} at ${latestTimestamp}. Enter VIX manually.`;
 
-                // Auto-update chart with new data
+                // Auto-update chart with new price
                 updateChart();
 
             } catch (error) {
-                console.error('Error fetching live data:', error);
+                console.error('Alpha Vantage API Error:', error);
                 statusEl.style.display = 'none';
-                errorEl.textContent = 'Unable to fetch live data. Using current values in inputs.';
+                errorEl.textContent = `Error: ${error.message}`;
                 errorEl.style.display = 'block';
             }
         }
@@ -362,9 +385,9 @@
                 type: 'Today'
             });
 
-            // Daily moves (first 10 trading days)
+            // Generate daily moves (first 10 trading days)
             const dailyDates = getTradingDaysList(today, 10);
-            dailyDates.forEach(date => {
+            dailyDates.forEach((date, index) => {
                 const dte = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
                 const expectedMove = calculateExpectedMove(stockPrice, volatility, std, dte);
                 
@@ -378,7 +401,7 @@
                 });
             });
 
-            // Weekly moves (Fridays after 10th trading day)
+            // Generate weekly moves
             const lastDailyDate = dailyDates[dailyDates.length - 1];
             const startWeekly = new Date(lastDailyDate);
             startWeekly.setDate(startWeekly.getDate() + 1);
@@ -386,7 +409,7 @@
             const endDate = new Date(2025, 11, 31);
             const fridays = getFridaysList(startWeekly, endDate);
             
-            fridays.forEach(date => {
+            fridays.forEach((date, index) => {
                 const dte = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
                 const expectedMove = calculateExpectedMove(stockPrice, volatility, std, dte);
                 
@@ -399,6 +422,9 @@
                     type: 'Weekly'
                 });
             });
+
+            // Sort data by date to ensure proper line drawing
+            data.sort((a, b) => a.date.getTime() - b.date.getTime());
 
             return { data, stockPrice, volatility };
         }
@@ -431,6 +457,7 @@
                         labels: labels,
                         datasets: [
                             {
+                                label: 'Upper Bound',
                                 data: upperBoundData,
                                 borderColor: '#2563eb',
                                 backgroundColor: 'rgba(37, 99, 235, 0.15)',
@@ -443,6 +470,7 @@
                                 cubicInterpolationMode: 'monotone'
                             },
                             {
+                                label: 'Lower Bound',
                                 data: lowerBoundData,
                                 borderColor: '#2563eb',
                                 backgroundColor: 'rgba(37, 99, 235, 0.15)',
@@ -455,6 +483,7 @@
                                 cubicInterpolationMode: 'monotone'
                             },
                             {
+                                label: 'Current Price',
                                 data: currentPriceData,
                                 borderColor: '#9ca3af',
                                 borderWidth: 1,
@@ -506,11 +535,11 @@
                                     color: 'rgba(0, 0, 0, 0.1)'
                                 },
                                 ticks: {
-                                    maxTicksLimit: 8,
-                                    callback: function(value, index) {
-                                        const dataPoint = data[index];
-                                        if (dataPoint && (dataPoint.type === 'Weekly' || index % 3 === 0)) {
-                                            return dataPoint.date.toLocaleDateString();
+                                    maxTicksLimit: 12,
+                                    callback: function(value, index, values) {
+                                        // Show every other label for better readability
+                                        if (index % 2 === 0 || index === values.length - 1) {
+                                            return this.getLabelForValue(value);
                                         }
                                         return '';
                                     }
@@ -549,9 +578,9 @@
             }
         }
 
-        // Initialize chart on page load (don't auto-fetch without API key)
+        // Initialize chart on page load
         window.addEventListener('load', () => {
-            updateChart(); // Generate chart with default values
+            updateChart(); // Start with default values
         });
 
         // Add enter key support for inputs
