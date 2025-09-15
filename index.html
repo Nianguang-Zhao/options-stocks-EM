@@ -5,7 +5,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tools for Options Pricing: SPY Expected Move</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/date-fns/2.29.3/index.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -56,7 +55,7 @@
             margin-bottom: 2rem;
             box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
             display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
             gap: 1.5rem;
             align-items: end;
         }
@@ -106,6 +105,24 @@
             box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
         }
 
+        .refresh-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+
         .chart-container {
             background: rgba(255, 255, 255, 0.95);
             backdrop-filter: blur(10px);
@@ -125,38 +142,6 @@
             font-size: 1.2rem;
             color: #667eea;
             font-weight: 600;
-        }
-
-        .stats {
-            background: rgba(255, 255, 255, 0.95);
-            backdrop-filter: blur(10px);
-            border-radius: 20px;
-            padding: 2rem;
-            margin-top: 2rem;
-            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
-            display: grid;
-            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
-            gap: 1rem;
-        }
-
-        .stat-item {
-            text-align: center;
-            padding: 1rem;
-            border-radius: 15px;
-            background: linear-gradient(135deg, rgba(102, 126, 234, 0.1) 0%, rgba(118, 75, 162, 0.1) 100%);
-        }
-
-        .stat-value {
-            font-size: 1.8rem;
-            font-weight: 700;
-            color: #667eea;
-            margin-bottom: 0.5rem;
-        }
-
-        .stat-label {
-            font-size: 0.9rem;
-            color: #7f8c8d;
-            font-weight: 500;
         }
 
         @media (max-width: 768px) {
@@ -189,6 +174,20 @@
             display: none;
         }
 
+        .status {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(16, 185, 129, 0.1);
+            color: #059669;
+            border: 1px solid rgba(16, 185, 129, 0.2);
+        }
+
         footer {
             text-align: center;
             padding: 2rem;
@@ -207,11 +206,11 @@
         <div class="controls">
             <div class="input-group">
                 <label for="stock-price">Current SPY Price ($)</label>
-                <input type="number" id="stock-price" step="0.01" value="579.50">
+                <input type="number" id="stock-price" step="0.01" value="579.50" readonly>
             </div>
             <div class="input-group">
                 <label for="volatility">VIX / Implied Volatility (%)</label>
-                <input type="number" id="volatility" step="0.01" value="12.85">
+                <input type="number" id="volatility" step="0.01" value="12.85" readonly>
             </div>
             <div class="input-group">
                 <label for="risk-free-rate">Risk-Free Rate (%)</label>
@@ -221,21 +220,21 @@
                 <label for="std-dev">Standard Deviations</label>
                 <input type="number" id="std-dev" step="0.1" value="1.0">
             </div>
+            <button class="refresh-btn" onclick="fetchLiveData()">Refresh Live Data</button>
             <button class="update-btn" onclick="updateChart()">Update Chart</button>
         </div>
 
+        <div class="status" id="status-message" style="display: none;"></div>
         <div class="error-message" id="error-message"></div>
 
         <div class="chart-container">
             <div class="loading" id="loading">Generating Chart...</div>
             <canvas id="probabilityChart"></canvas>
         </div>
-
-        <div class="stats" id="stats-container"></div>
     </main>
 
     <footer>
-        <p>Built with Chart.js • Data visualization for options trading analysis</p>
+        <p>Built with Chart.js • Real-time data from Yahoo Finance API</p>
     </footer>
 
     <script>
@@ -244,7 +243,7 @@
         // Trading days calculation functions
         function isWeekend(date) {
             const day = date.getDay();
-            return day === 0 || day === 6; // Sunday = 0, Saturday = 6
+            return day === 0 || day === 6;
         }
 
         function getNextTradingDay(date, daysAhead = 1) {
@@ -278,7 +277,7 @@
             const d = new Date(date);
             const daysUntilFriday = (5 - d.getDay() + 7) % 7;
             if (daysUntilFriday === 0) {
-                d.setDate(d.getDate() + 7); // Next Friday if today is Friday
+                d.setDate(d.getDate() + 7);
             } else {
                 d.setDate(d.getDate() + daysUntilFriday);
             }
@@ -299,6 +298,45 @@
 
         function calculateExpectedMove(stockPrice, iv, std, dte) {
             return stockPrice * iv * std * Math.sqrt(dte / 365);
+        }
+
+        // Fetch live data from Yahoo Finance API
+        async function fetchLiveData() {
+            const statusEl = document.getElementById('status-message');
+            const errorEl = document.getElementById('error-message');
+            
+            try {
+                statusEl.style.display = 'block';
+                statusEl.className = 'status';
+                statusEl.textContent = 'Fetching live data from Yahoo Finance...';
+                errorEl.style.display = 'none';
+
+                // Fetch SPY price
+                const spyResponse = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/SPY');
+                const spyData = await spyResponse.json();
+                const spyPrice = spyData.chart.result[0].meta.regularMarketPrice;
+
+                // Fetch VIX data
+                const vixResponse = await fetch('https://query1.finance.yahoo.com/v8/finance/chart/%5EVIX');
+                const vixData = await vixResponse.json();
+                const vixPrice = vixData.chart.result[0].meta.regularMarketPrice;
+
+                // Update input fields
+                document.getElementById('stock-price').value = spyPrice.toFixed(2);
+                document.getElementById('volatility').value = vixPrice.toFixed(2);
+
+                statusEl.className = 'status success';
+                statusEl.textContent = `Live data updated: SPY $${spyPrice.toFixed(2)}, VIX ${vixPrice.toFixed(2)}%`;
+
+                // Auto-update chart with new data
+                updateChart();
+
+            } catch (error) {
+                console.error('Error fetching live data:', error);
+                statusEl.style.display = 'none';
+                errorEl.textContent = 'Unable to fetch live data. Using current values in inputs.';
+                errorEl.style.display = 'block';
+            }
         }
 
         function generateData() {
@@ -340,29 +378,15 @@
                 });
             });
 
-            // Weekly moves (Fridays after 10th trading day) - more frequent points for smoother curve
+            // Weekly moves (Fridays after 10th trading day)
             const lastDailyDate = dailyDates[dailyDates.length - 1];
             const startWeekly = new Date(lastDailyDate);
             startWeekly.setDate(startWeekly.getDate() + 1);
             
-            const endDate = new Date(2025, 11, 31); // December 31, 2025
+            const endDate = new Date(2025, 11, 31);
             const fridays = getFridaysList(startWeekly, endDate);
             
-            // Add more intermediate points for smoother curve
-            const allWeeklyDates = [];
-            fridays.forEach((date, index) => {
-                allWeeklyDates.push(date);
-                // Add mid-week point for smoother interpolation (except for last item)
-                if (index < fridays.length - 1) {
-                    const midWeek = new Date(date);
-                    midWeek.setDate(midWeek.getDate() + 3); // Wednesday between Fridays
-                    if (midWeek < fridays[index + 1]) {
-                        allWeeklyDates.push(midWeek);
-                    }
-                }
-            });
-            
-            allWeeklyDates.forEach(date => {
+            fridays.forEach(date => {
                 const dte = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
                 const expectedMove = calculateExpectedMove(stockPrice, volatility, std, dte);
                 
@@ -407,33 +431,32 @@
                         labels: labels,
                         datasets: [
                             {
-                                label: 'Upper Bound (+1σ)',
                                 data: upperBoundData,
-                                borderColor: '#667eea',
-                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                                borderWidth: 3,
-                                fill: '+1',
-                                pointRadius: 4,
-                                pointHoverRadius: 6,
-                                tension: 0.4
-                            },
-                            {
-                                label: 'Lower Bound (-1σ)',
-                                data: lowerBoundData,
-                                borderColor: '#667eea',
-                                backgroundColor: 'rgba(102, 126, 234, 0.1)',
-                                borderWidth: 3,
-                                fill: false,
-                                pointRadius: 4,
-                                pointHoverRadius: 6,
-                                tension: 0.4
-                            },
-                            {
-                                label: 'Current Price',
-                                data: currentPriceData,
-                                borderColor: '#95a5a6',
+                                borderColor: '#2563eb',
+                                backgroundColor: 'rgba(37, 99, 235, 0.15)',
                                 borderWidth: 2,
-                                borderDash: [10, 5],
+                                fill: '+1',
+                                pointRadius: 2,
+                                pointHoverRadius: 4,
+                                pointBackgroundColor: '#2563eb',
+                                tension: 0.4
+                            },
+                            {
+                                data: lowerBoundData,
+                                borderColor: '#2563eb',
+                                backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                                borderWidth: 2,
+                                fill: false,
+                                pointRadius: 2,
+                                pointHoverRadius: 4,
+                                pointBackgroundColor: '#2563eb',
+                                tension: 0.4
+                            },
+                            {
+                                data: currentPriceData,
+                                borderColor: '#9ca3af',
+                                borderWidth: 1,
+                                borderDash: [5, 5],
                                 fill: false,
                                 pointRadius: 0,
                                 pointHoverRadius: 0
@@ -445,14 +468,10 @@
                         maintainAspectRatio: false,
                         plugins: {
                             title: {
-                                display: true,
-                                text: `Probability Analysis | Range: 68.27% (±1σ) | Volatility: ${(volatility * 100).toFixed(2)}%`,
-                                font: { size: 16, weight: 'bold' },
-                                padding: 20
+                                display: false
                             },
                             legend: {
-                                display: true,
-                                position: 'top'
+                                display: false
                             },
                             tooltip: {
                                 mode: 'index',
@@ -465,19 +484,27 @@
                                     },
                                     label: function(context) {
                                         const value = context.parsed.y;
-                                        return `${context.dataset.label}: $${value.toFixed(2)}`;
+                                        const datasetIndex = context.datasetIndex;
+                                        if (datasetIndex === 0) return `Upper: $${value.toFixed(2)}`;
+                                        if (datasetIndex === 1) return `Lower: $${value.toFixed(2)}`;
+                                        if (datasetIndex === 2) return `Current: $${value.toFixed(2)}`;
                                     }
                                 }
                             }
                         },
                         scales: {
                             x: {
+                                display: true,
                                 title: {
                                     display: true,
                                     text: 'Expiration Date'
                                 },
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
+                                },
                                 ticks: {
-                                    maxTicksLimit: 10,
+                                    maxTicksLimit: 8,
                                     callback: function(value, index) {
                                         const dataPoint = data[index];
                                         if (dataPoint && (dataPoint.type === 'Weekly' || index % 3 === 0)) {
@@ -488,9 +515,14 @@
                                 }
                             },
                             y: {
+                                display: true,
                                 title: {
                                     display: true,
                                     text: 'Stock Price ($)'
+                                },
+                                grid: {
+                                    display: true,
+                                    color: 'rgba(0, 0, 0, 0.1)'
                                 },
                                 ticks: {
                                     callback: function(value) {
@@ -505,9 +537,6 @@
                         }
                     }
                 });
-
-                // Update stats
-                updateStats(data, stockPrice, volatility);
                 
                 loadingEl.style.display = 'none';
                 
@@ -518,52 +547,9 @@
             }
         }
 
-        function updateStats(data, stockPrice, volatility) {
-            const container = document.getElementById('stats-container');
-            
-            // Calculate some key statistics
-            const oneDayMove = data.find(d => d.dte === 1);
-            const oneWeekData = data.find(d => d.dte >= 5 && d.dte <= 7);
-            const oneMonthData = data.find(d => d.dte >= 20 && d.dte <= 25);
-            
-            const stats = [
-                {
-                    label: 'Current SPY Price',
-                    value: `$${stockPrice.toFixed(2)}`
-                },
-                {
-                    label: 'Implied Volatility',
-                    value: `${(volatility * 100).toFixed(2)}%`
-                },
-                {
-                    label: '1-Day Expected Move',
-                    value: oneDayMove ? `±$${oneDayMove.expectedMove.toFixed(2)}` : 'N/A'
-                },
-                {
-                    label: '1-Week Expected Move',
-                    value: oneWeekData ? `±$${oneWeekData.expectedMove.toFixed(2)}` : 'N/A'
-                },
-                {
-                    label: '1-Month Expected Move',
-                    value: oneMonthData ? `±$${oneMonthData.expectedMove.toFixed(2)}` : 'N/A'
-                },
-                {
-                    label: 'Confidence Level',
-                    value: '68.27% (±1σ)'
-                }
-            ];
-            
-            container.innerHTML = stats.map(stat => `
-                <div class="stat-item">
-                    <div class="stat-value">${stat.value}</div>
-                    <div class="stat-label">${stat.label}</div>
-                </div>
-            `).join('');
-        }
-
-        // Initialize chart on page load
+        // Initialize chart and fetch live data on page load
         window.addEventListener('load', () => {
-            updateChart();
+            fetchLiveData();
         });
 
         // Add enter key support for inputs
