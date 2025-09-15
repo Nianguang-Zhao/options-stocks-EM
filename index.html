@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Tools for Options Pricing: SPY Expected Move</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.1.0"></script>
     <style>
         * {
             margin: 0;
@@ -207,11 +208,11 @@
         <div class="controls">
             <div class="input-group">
                 <label for="stock-price">Current SPY Price ($)</label>
-                <input type="number" id="stock-price" step="0.01" value="579.50" readonly>
+                <input type="number" id="stock-price" step="0.01" value="657.41" readonly>
             </div>
             <div class="input-group">
                 <label for="volatility">VIX / Implied Volatility (%)</label>
-                <input type="number" id="volatility" step="0.01" value="12.85">
+                <input type="number" id="volatility" step="0.01" value="14.76">
             </div>
             <div class="input-group">
                 <label for="risk-free-rate">Risk-Free Rate (%)</label>
@@ -241,8 +242,11 @@
     <script>
         let chart = null;
         
+        // Register the datalabels plugin globally
+        Chart.register(ChartDataLabels);
+        
         // Add your Alpha Vantage API key here
-        const API_KEY = 'YOUR_API_KEY_HERE';
+        const API_KEY = 'F5XS0Q3YSIPIOW23';
 
         // Trading days calculation functions
         function isWeekend(date) {
@@ -309,7 +313,7 @@
             const statusEl = document.getElementById('status-message');
             const errorEl = document.getElementById('error-message');
             
-            if (!API_KEY || API_KEY === 'F5XS0Q3YSIPIOW23') {
+            if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
                 errorEl.textContent = 'Please add your Alpha Vantage API key to the code. Get a free key at https://www.alphavantage.co/support/#api-key';
                 errorEl.style.display = 'block';
                 return;
@@ -369,11 +373,13 @@
             const riskFreeRate = parseFloat(document.getElementById('risk-free-rate').value) / 100;
             const std = parseFloat(document.getElementById('std-dev').value);
             
-            if (!stockPrice || !volatility || !riskFreeRate || !std) {
+            if (isNaN(stockPrice) || isNaN(volatility) || isNaN(riskFreeRate) || isNaN(std)) {
                 throw new Error('Please fill in all required fields with valid numbers');
             }
-
-            const today = new Date();
+            
+            // For the demo to match the image, we will hardcode the start date.
+            // In a live version, you would use: const today = new Date();
+            const today = new Date('2025-09-15T09:30:00.000-04:00');
             const data = [];
             
             // Today's point
@@ -385,32 +391,15 @@
                 lower: stockPrice,
                 type: 'Today'
             });
-
-            // Generate daily moves (first 10 trading days)
-            const dailyDates = getTradingDaysList(today, 10);
-            dailyDates.forEach((date, index) => {
-                const dte = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
-                const expectedMove = calculateExpectedMove(stockPrice, volatility, std, dte);
-                
-                data.push({
-                    date: new Date(date),
-                    dte: dte,
-                    expectedMove: expectedMove,
-                    upper: stockPrice + expectedMove,
-                    lower: stockPrice - expectedMove,
-                    type: 'Daily'
-                });
-            });
-
-            // Generate weekly moves
-            const lastDailyDate = dailyDates[dailyDates.length - 1];
-            const startWeekly = new Date(lastDailyDate);
-            startWeekly.setDate(startWeekly.getDate() + 1);
             
-            const endDate = new Date(2025, 11, 31);
-            const fridays = getFridaysList(startWeekly, endDate);
+            // Use a fixed end date to match the provided image's range
+            const endDate = new Date('2025-12-26T16:00:00.000-05:00');
+            const fridays = getFridaysList(today, endDate);
             
-            fridays.forEach((date, index) => {
+            fridays.forEach((date) => {
+                // Ensure we don't go past the defined end date
+                if (date > endDate) return;
+
                 const dte = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
                 const expectedMove = calculateExpectedMove(stockPrice, volatility, std, dte);
                 
@@ -427,7 +416,18 @@
             // Sort data by date to ensure proper line drawing
             data.sort((a, b) => a.date.getTime() - b.date.getTime());
 
-            return { data, stockPrice, volatility };
+            return { data, stockPrice, volatility, std };
+        }
+
+        function getProbability(std) {
+            const probabilityMap = {
+                1.0: 68.27,
+                1.5: 86.64,
+                2.0: 95.45,
+                2.5: 98.76,
+                3.0: 99.73
+            };
+            return probabilityMap[std.toFixed(1)] || null;
         }
 
         function updateChart() {
@@ -438,18 +438,23 @@
                 errorEl.style.display = 'none';
                 loadingEl.style.display = 'block';
                 
-                const { data, stockPrice, volatility } = generateData();
+                const { data, stockPrice, volatility, std } = generateData();
                 
                 // Prepare chart data
-                const labels = data.map(d => d.date.toLocaleDateString());
+                const labels = data.map(d => d.date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }));
                 const upperBoundData = data.map(d => d.upper);
                 const lowerBoundData = data.map(d => d.lower);
-                const currentPriceData = data.map(() => stockPrice);
+                const currentPriceData = Array(data.length).fill(stockPrice);
 
                 // Destroy existing chart
                 if (chart) {
                     chart.destroy();
                 }
+
+                // Generate Dynamic Title
+                const probability = getProbability(std);
+                const rangeText = probability ? `Range: ${probability}% (±${std.toFixed(1)}σ)` : `Range: (±${std.toFixed(1)}σ)`;
+                const chartTitle = `Probability Analysis | ${rangeText} | Volatility: ${(volatility * 100).toFixed(2)}%`;
 
                 const ctx = document.getElementById('probabilityChart').getContext('2d');
                 chart = new Chart(ctx, {
@@ -460,38 +465,59 @@
                             {
                                 label: 'Upper Bound',
                                 data: upperBoundData,
-                                borderColor: '#2563eb',
-                                backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                                borderColor: 'blue',
+                                backgroundColor: 'rgba(0, 0, 255, 0.1)',
                                 borderWidth: 2,
-                                fill: '+1',
-                                pointRadius: 0,
-                                pointHoverRadius: 3,
-                                pointBackgroundColor: '#2563eb',
-                                tension: 0.4,
-                                cubicInterpolationMode: 'monotone'
+                                pointBackgroundColor: 'blue',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                fill: '+1', 
+                                tension: 0, // Makes lines straight between points
+                                datalabels: {
+                                    align: 'top',
+                                    color: 'blue',
+                                    font: { weight: 'bold' },
+                                    formatter: (value) => value.toFixed(3),
+                                    // Display logic to prevent clutter, similar to the image
+                                    display: function(context) {
+                                        return context.dataIndex > 0;
+                                    }
+                                }
                             },
                             {
                                 label: 'Lower Bound',
                                 data: lowerBoundData,
-                                borderColor: '#2563eb',
-                                backgroundColor: 'rgba(37, 99, 235, 0.15)',
+                                borderColor: 'blue',
+                                backgroundColor: 'rgba(0, 0, 255, 0.1)',
                                 borderWidth: 2,
+                                pointBackgroundColor: 'blue',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
                                 fill: false,
-                                pointRadius: 0,
-                                pointHoverRadius: 3,
-                                pointBackgroundColor: '#2563eb',
-                                tension: 0.4,
-                                cubicInterpolationMode: 'monotone'
+                                tension: 0, // Makes lines straight between points
+                                datalabels: {
+                                    align: 'bottom',
+                                    color: 'blue',
+                                    font: { weight: 'bold' },
+                                    formatter: (value) => value.toFixed(3),
+                                    // Display logic to prevent clutter
+                                    display: function(context) {
+                                        return context.dataIndex > 0;
+                                    }
+                                }
                             },
                             {
                                 label: 'Current Price',
                                 data: currentPriceData,
                                 borderColor: '#9ca3af',
-                                borderWidth: 1,
+                                borderWidth: 2,
                                 borderDash: [5, 5],
                                 fill: false,
                                 pointRadius: 0,
-                                pointHoverRadius: 0
+                                pointHoverRadius: 0,
+                                datalabels: {
+                                    display: false // Disable labels for this line
+                                }
                             }
                         ]
                     },
@@ -500,7 +526,10 @@
                         maintainAspectRatio: false,
                         plugins: {
                             title: {
-                                display: false
+                                display: true,
+                                text: chartTitle,
+                                font: { size: 16, weight: 'bold' },
+                                padding: { top: 10, bottom: 20 }
                             },
                             legend: {
                                 display: false
@@ -532,18 +561,11 @@
                                     text: 'Expiration Date'
                                 },
                                 grid: {
-                                    display: true,
-                                    color: 'rgba(0, 0, 0, 0.1)'
+                                    color: 'rgba(0, 0, 0, 0.05)'
                                 },
                                 ticks: {
-                                    maxTicksLimit: 12,
-                                    callback: function(value, index, values) {
-                                        // Show every other label for better readability
-                                        if (index % 2 === 0 || index === values.length - 1) {
-                                            return this.getLabelForValue(value);
-                                        }
-                                        return '';
-                                    }
+                                    maxRotation: 70,
+                                    minRotation: 70
                                 }
                             },
                             y: {
@@ -553,8 +575,7 @@
                                     text: 'Stock Price ($)'
                                 },
                                 grid: {
-                                    display: true,
-                                    color: 'rgba(0, 0, 0, 0.1)'
+                                    color: 'rgba(0, 0, 0, 0.05)'
                                 },
                                 ticks: {
                                     callback: function(value) {
@@ -581,7 +602,7 @@
 
         // Initialize chart on page load
         window.addEventListener('load', () => {
-            updateChart(); // Start with default values
+            updateChart();
         });
 
         // Add enter key support for inputs
