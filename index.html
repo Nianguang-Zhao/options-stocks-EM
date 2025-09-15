@@ -309,7 +309,7 @@
             const statusEl = document.getElementById('status-message');
             const errorEl = document.getElementById('error-message');
             
-            if (!API_KEY || API_KEY === 'F5XS0Q3YSIPIOW23') {
+            if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
                 errorEl.textContent = 'Please add your Alpha Vantage API key to the code. Get a free key at https://www.alphavantage.co/support/#api-key';
                 errorEl.style.display = 'block';
                 return;
@@ -517,9 +517,9 @@
                                     label: function(context) {
                                         const value = context.parsed.y;
                                         const datasetIndex = context.datasetIndex;
-                                        if (datasetIndex === 0) return `Upper: $${value.toFixed(2)}`;
-                                        if (datasetIndex === 1) return `Lower: $${value.toFixed(2)}`;
-                                        if (datasetIndex === 2) return `Current: $${value.toFixed(2)}`;
+                                        if (datasetIndex === 0) return `Upper: ${value.toFixed(2)}`;
+                                        if (datasetIndex === 1) return `Lower: ${value.toFixed(2)}`;
+                                        if (datasetIndex === 2) return `Current: ${value.toFixed(2)}`;
                                     }
                                 }
                             }
@@ -558,7 +558,24 @@
                                 },
                                 ticks: {
                                     callback: function(value) {
-                                        return '$' + value.toFixed(0);
+                                        return '
+
+        // Initialize chart on page load
+        window.addEventListener('load', () => {
+            updateChart(); // Start with default values
+        });
+
+        // Add enter key support for inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    updateChart();
+                }
+            });
+        });
+    </script>
+</body>
+</html> + value.toFixed(0);
                                     }
                                 }
                             }
@@ -570,6 +587,9 @@
                     }
                 });
                 
+                // Update the table
+                updateTable(data);
+                
                 loadingEl.style.display = 'none';
                 
             } catch (error) {
@@ -577,6 +597,56 @@
                 errorEl.textContent = error.message;
                 errorEl.style.display = 'block';
             }
+        }
+
+        function updateTable(data) {
+            // Filter data to exclude today (DTE = 0) and format
+            const tableData = data.filter(d => d.dte > 0).map(d => ({
+                expiration: d.date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) + ` (${d.dte}D)`,
+                lower: d.lower.toFixed(3),
+                upper: d.upper.toFixed(3),
+                expectedMove: d.expectedMove.toFixed(3)
+            }));
+
+            // Get table elements
+            const tableHead = document.getElementById('tableHead');
+            const tableBody = document.getElementById('tableBody');
+
+            // Clear existing content
+            tableHead.innerHTML = '';
+            tableBody.innerHTML = '';
+
+            if (tableData.length === 0) return;
+
+            // Build header HTML string
+            let headerHTML = '<tr><th>Metric</th>';
+            tableData.forEach(item => {
+                headerHTML += `<th>${item.expiration}</th>`;
+            });
+            headerHTML += '</tr>';
+            
+            // Set header HTML
+            tableHead.innerHTML = headerHTML;
+
+            // Build body HTML string for transposed data
+            const metrics = [
+                { key: 'lower', label: 'Lower' },
+                { key: 'upper', label: 'Upper' },
+                { key: 'expectedMove', label: 'Expected Move' }
+            ];
+
+            let bodyHTML = '';
+            metrics.forEach(metric => {
+                bodyHTML += '<tr>';
+                bodyHTML += `<td>${metric.label}</td>`;
+                tableData.forEach(item => {
+                    bodyHTML += `<td>${item[metric.key]}</td>`;
+                });
+                bodyHTML += '</tr>';
+            });
+            
+            // Set body HTML
+            tableBody.innerHTML = bodyHTML;
         }
 
         // Initialize chart on page load
