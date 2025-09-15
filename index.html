@@ -436,10 +436,11 @@
                                 backgroundColor: 'rgba(37, 99, 235, 0.15)',
                                 borderWidth: 2,
                                 fill: '+1',
-                                pointRadius: 2,
-                                pointHoverRadius: 4,
+                                pointRadius: 0,
+                                pointHoverRadius: 3,
                                 pointBackgroundColor: '#2563eb',
-                                tension: 0.4
+                                tension: 0.4,
+                                cubicInterpolationMode: 'monotone'
                             },
                             {
                                 data: lowerBoundData,
@@ -447,10 +448,11 @@
                                 backgroundColor: 'rgba(37, 99, 235, 0.15)',
                                 borderWidth: 2,
                                 fill: false,
-                                pointRadius: 2,
-                                pointHoverRadius: 4,
+                                pointRadius: 0,
+                                pointHoverRadius: 3,
                                 pointBackgroundColor: '#2563eb',
-                                tension: 0.4
+                                tension: 0.4,
+                                cubicInterpolationMode: 'monotone'
                             },
                             {
                                 data: currentPriceData,
@@ -547,9 +549,9 @@
             }
         }
 
-        // Initialize chart and fetch live data on page load
+        // Initialize chart on page load (don't auto-fetch without API key)
         window.addEventListener('load', () => {
-            fetchLiveData();
+            updateChart(); // Generate chart with default values
         });
 
         // Add enter key support for inputs
