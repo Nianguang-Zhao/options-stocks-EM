@@ -1,0 +1,618 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tools for Options Pricing: SPY Expected Move</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/3.9.1/chart.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.1.0"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            line-height: 1.6;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            color: #333;
+        }
+
+        header {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            padding: 2rem 0;
+            text-align: center;
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.1);
+        }
+
+        header h1 {
+            font-size: 2.5rem;
+            color: #2c3e50;
+            margin-bottom: 0.5rem;
+            font-weight: 700;
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            font-weight: 300;
+        }
+
+        main {
+            padding: 3rem 2rem;
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        .controls {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 1.5rem;
+            align-items: end;
+        }
+
+        .input-group {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .input-group label {
+            font-weight: 600;
+            margin-bottom: 0.5rem;
+            color: #2c3e50;
+            font-size: 0.9rem;
+        }
+
+        .input-group input {
+            padding: 12px 16px;
+            border: 2px solid #e0e6ed;
+            border-radius: 10px;
+            font-size: 1rem;
+            transition: all 0.3s ease;
+            background: white;
+        }
+
+        .input-group input:focus {
+            outline: none;
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.1);
+        }
+
+        .update-btn {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        .update-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        .refresh-btn {
+            background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-size: 1rem;
+            font-weight: 600;
+            transition: all 0.3s ease;
+            box-shadow: 0 4px 15px rgba(16, 185, 129, 0.4);
+        }
+
+        .refresh-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(16, 185, 129, 0.6);
+        }
+
+        .chart-container {
+            background: rgba(255, 255, 255, 0.95);
+            backdrop-filter: blur(10px);
+            border-radius: 20px;
+            padding: 2rem;
+            box-shadow: 0 10px 40px rgba(0, 0, 0, 0.1);
+            position: relative;
+            height: 600px;
+        }
+
+        .loading {
+            display: none;
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            font-size: 1.2rem;
+            color: #667eea;
+            font-weight: 600;
+        }
+
+        @media (max-width: 768px) {
+            header h1 {
+                font-size: 2rem;
+            }
+            
+            main {
+                padding: 2rem 1rem;
+            }
+            
+            .controls {
+                grid-template-columns: 1fr;
+                padding: 1.5rem;
+            }
+            
+            .chart-container {
+                height: 400px;
+                padding: 1rem;
+            }
+        }
+
+        .error-message {
+            background: #fee;
+            border: 1px solid #fcc;
+            color: #c33;
+            padding: 1rem;
+            border-radius: 10px;
+            margin: 1rem 0;
+            display: none;
+        }
+
+        .status {
+            text-align: center;
+            margin: 1rem 0;
+            padding: 0.5rem;
+            border-radius: 8px;
+            font-weight: 500;
+        }
+
+        .status.success {
+            background: rgba(255, 255, 255, 0.95);
+            color: #1f2937;
+            border: 1px solid rgba(16, 185, 129, 0.3);
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+        }
+
+        footer {
+            text-align: center;
+            padding: 2rem;
+            color: rgba(255, 255, 255, 0.8);
+            font-size: 0.9rem;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <h1>Tools for Options Pricing: SPY Expected Move</h1>
+        <div class="subtitle">Real-time Probability Analysis for SPY Options Trading</div>
+    </header>
+    
+    <main>
+        <div class="controls">
+            <div class="input-group">
+                <label for="stock-price">Current SPY Price ($)</label>
+                <input type="number" id="stock-price" step="0.01" value="657.41" readonly>
+            </div>
+            <div class="input-group">
+                <label for="volatility">VIX / Implied Volatility (%)</label>
+                <input type="number" id="volatility" step="0.01" value="14.76">
+            </div>
+            <div class="input-group">
+                <label for="risk-free-rate">Risk-Free Rate (%)</label>
+                <input type="number" id="risk-free-rate" step="0.001" value="4.1">
+            </div>
+            <div class="input-group">
+                <label for="std-dev">Standard Deviations</label>
+                <input type="number" id="std-dev" step="0.1" value="1.0">
+            </div>
+            <button class="refresh-btn" onclick="fetchSPYPrice()">Refresh SPY Price</button>
+            <button class="update-btn" onclick="updateChart()">Update Chart</button>
+        </div>
+
+        <div class="status" id="status-message" style="display: none;"></div>
+        <div class="error-message" id="error-message"></div>
+
+        <div class="chart-container">
+            <div class="loading" id="loading">Generating Chart...</div>
+            <canvas id="probabilityChart"></canvas>
+        </div>
+    </main>
+
+    <footer>
+        <p>Built with Chart.js • SPY data from Alpha Vantage API • <a href="https://www.alphavantage.co/support/#api-key" target="_blank" style="color: rgba(255,255,255,0.9);">Get Free API Key</a></p>
+    </footer>
+
+    <script>
+        let chart = null;
+        
+        // Register the datalabels plugin globally
+        Chart.register(ChartDataLabels);
+        
+        // Add your Alpha Vantage API key here
+        const API_KEY = 'F5XS0Q3YSIPIOW23';
+
+        // Trading days calculation functions
+        function isWeekend(date) {
+            const day = date.getDay();
+            return day === 0 || day === 6;
+        }
+
+        function getNextTradingDay(date, daysAhead = 1) {
+            let currentDate = new Date(date);
+            let tradingDays = 0;
+            
+            while (tradingDays < daysAhead) {
+                currentDate.setDate(currentDate.getDate() + 1);
+                if (!isWeekend(currentDate)) {
+                    tradingDays++;
+                }
+            }
+            
+            return new Date(currentDate);
+        }
+
+        function getTradingDaysList(startDate, numDays) {
+            const tradingDays = [];
+            let currentDate = new Date(startDate);
+            
+            for (let i = 0; i < numDays; i++) {
+                const nextTradingDay = getNextTradingDay(currentDate, 1);
+                tradingDays.push(new Date(nextTradingDay));
+                currentDate = nextTradingDay;
+            }
+            
+            return tradingDays;
+        }
+
+        function getNextFriday(date) {
+            const d = new Date(date);
+            const daysUntilFriday = (5 - d.getDay() + 7) % 7;
+            if (daysUntilFriday === 0) {
+                d.setDate(d.getDate() + 7);
+            } else {
+                d.setDate(d.getDate() + daysUntilFriday);
+            }
+            return d;
+        }
+
+        function getFridaysList(startDate, endDate) {
+            const fridays = [];
+            let currentFriday = getNextFriday(startDate);
+            
+            while (currentFriday <= endDate) {
+                fridays.push(new Date(currentFriday));
+                currentFriday.setDate(currentFriday.getDate() + 7);
+            }
+            
+            return fridays;
+        }
+
+        function calculateExpectedMove(stockPrice, iv, std, dte) {
+            return stockPrice * iv * std * Math.sqrt(dte / 365);
+        }
+
+        // Fetch SPY price using Alpha Vantage API
+        async function fetchSPYPrice() {
+            const statusEl = document.getElementById('status-message');
+            const errorEl = document.getElementById('error-message');
+            
+            if (!API_KEY || API_KEY === 'YOUR_API_KEY_HERE') {
+                errorEl.textContent = 'Please add your Alpha Vantage API key to the code. Get a free key at https://www.alphavantage.co/support/#api-key';
+                errorEl.style.display = 'block';
+                return;
+            }
+
+            try {
+                statusEl.style.display = 'block';
+                statusEl.className = 'status';
+                statusEl.textContent = 'Fetching SPY price from Alpha Vantage...';
+                errorEl.style.display = 'none';
+
+                // Alpha Vantage API call
+                const spyUrl = `https://www.alphavantage.co/query?function=TIME_SERIES_INTRADAY&symbol=SPY&interval=1min&apikey=${API_KEY}`;
+                
+                const response = await fetch(spyUrl);
+                const data = await response.json();
+
+                // Handle API errors
+                if (data['Error Message']) {
+                    throw new Error('Invalid API call. Please check your API key.');
+                }
+                
+                if (data['Note']) {
+                    throw new Error('API call frequency exceeded. Free tier: 5 calls/minute.');
+                }
+
+                if (!data['Time Series (1min)']) {
+                    throw new Error('No SPY data received. Check your API key or try again later.');
+                }
+
+                // Get most recent SPY price
+                const timeSeries = data['Time Series (1min)'];
+                const timestamps = Object.keys(timeSeries).sort().reverse();
+                const latestTimestamp = timestamps[0];
+                const spyPrice = parseFloat(timeSeries[latestTimestamp]['4. close']);
+
+                // Update SPY price field
+                document.getElementById('stock-price').value = spyPrice.toFixed(2);
+
+                statusEl.className = 'status success';
+                statusEl.textContent = `SPY price updated: $${spyPrice.toFixed(2)} at ${latestTimestamp}. Enter VIX manually.`;
+
+                // Auto-update chart with new price
+                updateChart();
+
+            } catch (error) {
+                console.error('Alpha Vantage API Error:', error);
+                statusEl.style.display = 'none';
+                errorEl.textContent = `Error: ${error.message}`;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        function generateData() {
+            const stockPrice = parseFloat(document.getElementById('stock-price').value);
+            const volatility = parseFloat(document.getElementById('volatility').value) / 100;
+            const riskFreeRate = parseFloat(document.getElementById('risk-free-rate').value) / 100;
+            const std = parseFloat(document.getElementById('std-dev').value);
+            
+            if (isNaN(stockPrice) || isNaN(volatility) || isNaN(riskFreeRate) || isNaN(std)) {
+                throw new Error('Please fill in all required fields with valid numbers');
+            }
+            
+            // For the demo to match the image, we will hardcode the start date.
+            // In a live version, you would use: const today = new Date();
+            const today = new Date('2025-09-15T09:30:00.000-04:00');
+            const data = [];
+            
+            // Today's point
+            data.push({
+                date: new Date(today),
+                dte: 0,
+                expectedMove: 0,
+                upper: stockPrice,
+                lower: stockPrice,
+                type: 'Today'
+            });
+            
+            // Use a fixed end date to match the provided image's range
+            const endDate = new Date('2025-12-26T16:00:00.000-05:00');
+            const fridays = getFridaysList(today, endDate);
+            
+            fridays.forEach((date) => {
+                // Ensure we don't go past the defined end date
+                if (date > endDate) return;
+
+                const dte = Math.ceil((date - today) / (1000 * 60 * 60 * 24));
+                const expectedMove = calculateExpectedMove(stockPrice, volatility, std, dte);
+                
+                data.push({
+                    date: new Date(date),
+                    dte: dte,
+                    expectedMove: expectedMove,
+                    upper: stockPrice + expectedMove,
+                    lower: stockPrice - expectedMove,
+                    type: 'Weekly'
+                });
+            });
+
+            // Sort data by date to ensure proper line drawing
+            data.sort((a, b) => a.date.getTime() - b.date.getTime());
+
+            return { data, stockPrice, volatility, std };
+        }
+
+        function getProbability(std) {
+            const probabilityMap = {
+                1.0: 68.27,
+                1.5: 86.64,
+                2.0: 95.45,
+                2.5: 98.76,
+                3.0: 99.73
+            };
+            return probabilityMap[std.toFixed(1)] || null;
+        }
+
+        function updateChart() {
+            const loadingEl = document.getElementById('loading');
+            const errorEl = document.getElementById('error-message');
+            
+            try {
+                errorEl.style.display = 'none';
+                loadingEl.style.display = 'block';
+                
+                const { data, stockPrice, volatility, std } = generateData();
+                
+                // Prepare chart data
+                const labels = data.map(d => d.date.toLocaleDateString('en-US', { year: 'numeric', month: '2-digit', day: '2-digit' }));
+                const upperBoundData = data.map(d => d.upper);
+                const lowerBoundData = data.map(d => d.lower);
+                const currentPriceData = Array(data.length).fill(stockPrice);
+
+                // Destroy existing chart
+                if (chart) {
+                    chart.destroy();
+                }
+
+                // Generate Dynamic Title
+                const probability = getProbability(std);
+                const rangeText = probability ? `Range: ${probability}% (±${std.toFixed(1)}σ)` : `Range: (±${std.toFixed(1)}σ)`;
+                const chartTitle = `Probability Analysis | ${rangeText} | Volatility: ${(volatility * 100).toFixed(2)}%`;
+
+                const ctx = document.getElementById('probabilityChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'line',
+                    data: {
+                        labels: labels,
+                        datasets: [
+                            {
+                                label: 'Upper Bound',
+                                data: upperBoundData,
+                                borderColor: 'blue',
+                                backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                                borderWidth: 2,
+                                pointBackgroundColor: 'blue',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                fill: '+1', 
+                                tension: 0, // Makes lines straight between points
+                                datalabels: {
+                                    align: 'top',
+                                    color: 'blue',
+                                    font: { weight: 'bold' },
+                                    formatter: (value) => value.toFixed(3),
+                                    // Display logic to prevent clutter, similar to the image
+                                    display: function(context) {
+                                        return context.dataIndex > 0;
+                                    }
+                                }
+                            },
+                            {
+                                label: 'Lower Bound',
+                                data: lowerBoundData,
+                                borderColor: 'blue',
+                                backgroundColor: 'rgba(0, 0, 255, 0.1)',
+                                borderWidth: 2,
+                                pointBackgroundColor: 'blue',
+                                pointRadius: 3,
+                                pointHoverRadius: 5,
+                                fill: false,
+                                tension: 0, // Makes lines straight between points
+                                datalabels: {
+                                    align: 'bottom',
+                                    color: 'blue',
+                                    font: { weight: 'bold' },
+                                    formatter: (value) => value.toFixed(3),
+                                    // Display logic to prevent clutter
+                                    display: function(context) {
+                                        return context.dataIndex > 0;
+                                    }
+                                }
+                            },
+                            {
+                                label: 'Current Price',
+                                data: currentPriceData,
+                                borderColor: '#9ca3af',
+                                borderWidth: 2,
+                                borderDash: [5, 5],
+                                fill: false,
+                                pointRadius: 0,
+                                pointHoverRadius: 0,
+                                datalabels: {
+                                    display: false // Disable labels for this line
+                                }
+                            }
+                        ]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            title: {
+                                display: true,
+                                text: chartTitle,
+                                font: { size: 16, weight: 'bold' },
+                                padding: { top: 10, bottom: 20 }
+                            },
+                            legend: {
+                                display: false
+                            },
+                            tooltip: {
+                                mode: 'index',
+                                intersect: false,
+                                callbacks: {
+                                    title: function(context) {
+                                        const index = context[0].dataIndex;
+                                        const dataPoint = data[index];
+                                        return `${dataPoint.date.toLocaleDateString()} (${dataPoint.dte} DTE)`;
+                                    },
+                                    label: function(context) {
+                                        const value = context.parsed.y;
+                                        const datasetIndex = context.datasetIndex;
+                                        if (datasetIndex === 0) return `Upper: $${value.toFixed(2)}`;
+                                        if (datasetIndex === 1) return `Lower: $${value.toFixed(2)}`;
+                                        if (datasetIndex === 2) return `Current: $${value.toFixed(2)}`;
+                                    }
+                                }
+                            }
+                        },
+                        scales: {
+                            x: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Expiration Date'
+                                },
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                },
+                                ticks: {
+                                    maxRotation: 70,
+                                    minRotation: 70
+                                }
+                            },
+                            y: {
+                                display: true,
+                                title: {
+                                    display: true,
+                                    text: 'Stock Price ($)'
+                                },
+                                grid: {
+                                    color: 'rgba(0, 0, 0, 0.05)'
+                                },
+                                ticks: {
+                                    callback: function(value) {
+                                        return '$' + value.toFixed(0);
+                                    }
+                                }
+                            }
+                        },
+                        interaction: {
+                            mode: 'index',
+                            intersect: false
+                        }
+                    }
+                });
+                
+                loadingEl.style.display = 'none';
+                
+            } catch (error) {
+                loadingEl.style.display = 'none';
+                errorEl.textContent = error.message;
+                errorEl.style.display = 'block';
+            }
+        }
+
+        // Initialize chart on page load
+        window.addEventListener('load', () => {
+            updateChart();
+        });
+
+        // Add enter key support for inputs
+        document.querySelectorAll('input').forEach(input => {
+            input.addEventListener('keypress', (e) => {
+                if (e.key === 'Enter') {
+                    updateChart();
+                }
+            });
+        });
+    </script>
+</body>
+</html>
