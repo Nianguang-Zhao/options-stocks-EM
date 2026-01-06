@@ -348,14 +348,14 @@ fig.update_layout(
 # Export to HTML
 plotly_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-html_template = """
+html_template = f"""
 <html>
 <head>
     <title>SPY Options Expected Move</title>
     <meta charset="utf-8">
     <style>
-        body { font-family: Arial; margin: 40px; }
-        nav a { text-decoration: none; color: #0077b5; }
+        body {{ font-family: Arial; margin: 40px; }}
+        nav a {{ text-decoration: none; color: #0077b5; }}
     </style>
 </head>
 <body>
