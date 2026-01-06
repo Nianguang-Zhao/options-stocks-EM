@@ -1,0 +1,10 @@
+jupyter
+nbconvert
+papermill
+pandas
+matplotlib
+numpy
+scipy
+yfinance
+plotly
+
