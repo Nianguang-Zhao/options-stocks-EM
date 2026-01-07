@@ -431,10 +431,18 @@ def main():
     
     # Process second notebook (stock_tracker.ipynb)
     # This notebook already exports to HTML, so we just need to execute it
+    print("Processing stock_tracker.ipynb...")
     executed_notebook = "stock_tracker_executed.ipynb"
     if not execute_notebook_with_papermill("stock_tracker.ipynb", executed_notebook):
-        print("❌ Failed to generate stock_tracker.html")
+        print("❌ Failed to execute stock_tracker.ipynb")
         sys.exit(1)
+    
+    # Verify that stock_tracker.html was created
+    if not os.path.exists("stock_tracker.html"):
+        print("❌ stock_tracker.html was not generated after executing the notebook")
+        sys.exit(1)
+    else:
+        print("✅ Successfully generated stock_tracker.html")
     
     # Clean up executed notebook files
     for temp_file in ["options_stock_expected_move_executed.ipynb", "stock_tracker_executed.ipynb"]:
@@ -442,8 +450,20 @@ def main():
             os.remove(temp_file)
             print(f"Cleaned up {temp_file}")
     
-    print("=" * 60)
-    print("✅ All HTML files updated successfully!")
+    # Verify both HTML files exist
+    print("\n" + "=" * 60)
+    if os.path.exists("index.html") and os.path.exists("stock_tracker.html"):
+        print("✅ All HTML files updated successfully!")
+        print(f"   - index.html (from options_stock_expected_move.ipynb)")
+        print(f"   - stock_tracker.html (from stock_tracker.ipynb)")
+    else:
+        missing = []
+        if not os.path.exists("index.html"):
+            missing.append("index.html")
+        if not os.path.exists("stock_tracker.html"):
+            missing.append("stock_tracker.html")
+        print(f"❌ Missing HTML files: {', '.join(missing)}")
+        sys.exit(1)
     print("=" * 60)
 
 if __name__ == "__main__":
