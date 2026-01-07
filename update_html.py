@@ -342,6 +342,7 @@ fig.update_layout(
         bgcolor="white",
         bordercolor="black",
         font_size=12
+        
     )
 )
 
