@@ -126,6 +126,19 @@ today_row = pd.DataFrame({
 
 df = pd.concat([today_row, daily_df, weekly_df], ignore_index=True)
 
+# ==== Create Expected Moves Table (from Cell 3) ====
+sample_df = df[['expiration_day', 'DTE', 'lower', 'upper', 'expected_move', 'type']].copy()
+sample_df['expiration_day'] = sample_df['expiration_day'].dt.strftime('%b %d')
+sample_df['lower'] = sample_df['lower'].round(3)
+sample_df['upper'] = sample_df['upper'].round(3)
+sample_df['expected move'] = sample_df['expected_move'].round(3)
+revised_df = sample_df[sample_df['DTE']>0][['expiration_day', 'DTE', 'lower', 'upper','expected move']].copy()
+revised_df['Expiration'] = revised_df['expiration_day'] + ' (' + revised_df['DTE'].astype(str) + 'D)'
+revised_df = revised_df.set_index('Expiration')[['lower', 'upper','expected move']].T
+
+# Convert table to HTML
+expected_moves_table_html = revised_df.to_html(classes='expected-moves-table', table_id='expected-moves-table', escape=False)
+
 # ==== Calculate deltas ====
 current_price_rounded = round(stock_price)
 strike_range = 15
@@ -357,6 +370,11 @@ html_template = (
     "    <style>\\n"
     "        body { font-family: Arial; margin: 40px; }\\n"
     "        nav a { text-decoration: none; color: #0077b5; }\\n"
+    "        .expected-moves-table { border-collapse: collapse; margin: 20px 0; width: 100%; }\\n"
+    "        .expected-moves-table th, .expected-moves-table td { border: 1px solid #ddd; padding: 8px; text-align: right; }\\n"
+    "        .expected-moves-table th { background-color: #f2f2f2; font-weight: bold; }\\n"
+    "        .expected-moves-table tr:nth-child(even) { background-color: #f9f9f9; }\\n"
+    "        .table-container { margin: 30px 0; overflow-x: auto; }\\n"
     "    </style>\\n"
     "</head>\\n"
     "<body>\\n"
@@ -368,6 +386,11 @@ html_template = (
     "\\n"
     "    <!-- Insert Plotly chart -->\\n"
     + plotly_html + "\\n"
+    "\\n"
+    "    <h2>Expected Moves Table</h2>\\n"
+    "    <div class=\\"table-container\\">\\n"
+    + expected_moves_table_html + "\\n"
+    "    </div>\\n"
     "\\n"
     '    <footer style="margin-top:50px; font-size:14px; color:gray;">\\n'
     "        Created by Nianguang Zhao | Hosted on GitHub Pages\\n"
