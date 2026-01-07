@@ -348,42 +348,43 @@ fig.update_layout(
 # Export to HTML
 plotly_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-html_template = f"""
-<html>
-<head>
-    <title>SPY Options Expected Move</title>
-    <meta charset="utf-8">
-    <style>
-        body {{ font-family: Arial; margin: 40px; }}
-        nav a {{ text-decoration: none; color: #0077b5; }}
-    </style>
-</head>
-<body>
-
-    <!-- Load Navbar -->
-    <div id="navbar-placeholder"></div>
-
-    <h1>📊 SPY Options Expected Move</h1>
-
-    <!-- Insert Plotly chart -->
-    {plotly_html}
-
-    <footer style="margin-top:50px; font-size:14px; color:gray;">
-        Created by Nianguang Zhao | Hosted on GitHub Pages
-    </footer>
-
-    <script>
-        // Load navbar.html into the placeholder
-        fetch("navbar.html")
-            .then(response => response.text())
-            .then(data => {{
-                document.getElementById("navbar-placeholder").innerHTML = data;
-            }});
-    </script>
-
-</body>
-</html>
-""".format(plotly_html=plotly_html)
+html_parts = [
+    "<html>",
+    "<head>",
+    "    <title>SPY Options Expected Move</title>",
+    "    <meta charset=\"utf-8\">",
+    "    <style>",
+    "        body { font-family: Arial; margin: 40px; }",
+    "        nav a { text-decoration: none; color: #0077b5; }",
+    "    </style>",
+    "</head>",
+    "<body>",
+    "",
+    "    <!-- Load Navbar -->",
+    "    <div id=\"navbar-placeholder\"></div>",
+    "",
+    "    <h1>📊 SPY Options Expected Move</h1>",
+    "",
+    "    <!-- Insert Plotly chart -->",
+    plotly_html,
+    "",
+    "    <footer style=\"margin-top:50px; font-size:14px; color:gray;\">",
+    "        Created by Nianguang Zhao | Hosted on GitHub Pages",
+    "    </footer>",
+    "",
+    "    <script>",
+    "        // Load navbar.html into the placeholder",
+    "        fetch(\"navbar.html\")",
+    "            .then(response => response.text())",
+    "            .then(data => {",
+    "                document.getElementById(\"navbar-placeholder\").innerHTML = data;",
+    "            });",
+    "    </script>",
+    "",
+    "</body>",
+    "</html>"
+]
+html_template = "\\n".join(html_parts)
 
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html_template)
