@@ -349,43 +349,42 @@ fig.update_layout(
 # Export to HTML
 plotly_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 
-html_parts = [
-    "<html>",
-    "<head>",
-    "    <title>SPY Options Expected Move</title>",
-    "    <meta charset=\"utf-8\">",
-    "    <style>",
-    "        body { font-family: Arial; margin: 40px; }",
-    "        nav a { text-decoration: none; color: #0077b5; }",
-    "    </style>",
-    "</head>",
-    "<body>",
-    "",
-    "    <!-- Load Navbar -->",
-    "    <div id=\"navbar-placeholder\"></div>",
-    "",
-    "    <h1>📊 SPY Options Expected Move</h1>",
-    "",
-    "    <!-- Insert Plotly chart -->",
-    plotly_html,
-    "",
-    "    <footer style=\"margin-top:50px; font-size:14px; color:gray;\">",
-    "        Created by Nianguang Zhao | Hosted on GitHub Pages",
-    "    </footer>",
-    "",
-    "    <script>",
-    "        // Load navbar.html into the placeholder",
-    "        fetch(\"navbar.html\")",
-    "            .then(response => response.text())",
-    "            .then(data => {",
-    "                document.getElementById(\"navbar-placeholder\").innerHTML = data;",
-    "            });",
-    "    </script>",
-    "",
-    "</body>",
-    "</html>"
-]
-html_template = "\\n".join(html_parts)
+html_template = (
+    "<html>\\n"
+    "<head>\\n"
+    "    <title>SPY Options Expected Move</title>\\n"
+    '    <meta charset="utf-8">\\n'
+    "    <style>\\n"
+    "        body { font-family: Arial; margin: 40px; }\\n"
+    "        nav a { text-decoration: none; color: #0077b5; }\\n"
+    "    </style>\\n"
+    "</head>\\n"
+    "<body>\\n"
+    "\\n"
+    "    <!-- Load Navbar -->\\n"
+    '    <div id="navbar-placeholder"></div>\\n'
+    "\\n"
+    "    <h1>📊 SPY Options Expected Move</h1>\\n"
+    "\\n"
+    "    <!-- Insert Plotly chart -->\\n"
+    + plotly_html + "\\n"
+    "\\n"
+    '    <footer style="margin-top:50px; font-size:14px; color:gray;">\\n'
+    "        Created by Nianguang Zhao | Hosted on GitHub Pages\\n"
+    "    </footer>\\n"
+    "\\n"
+    "    <script>\\n"
+    "        // Load navbar.html into the placeholder\\n"
+    '        fetch("navbar.html")\\n'
+    "            .then(response => response.text())\\n"
+    "            .then(data => {\\n"
+    '                document.getElementById("navbar-placeholder").innerHTML = data;\\n'
+    "            });\\n"
+    "    </script>\\n"
+    "\\n"
+    "</body>\\n"
+    "</html>\\n"
+)
 
 with open("index.html", "w", encoding="utf-8") as f:
     f.write(html_template)
