@@ -66,7 +66,7 @@ vix_ticker = yf.Ticker("^VIX")
 iv = vix_ticker.info['regularMarketPrice']/100
 
 std = 1
-risk_free_rate = 0.041
+risk_free_rate = 0.0374
 
 # ==== Generate Trading Days (excluding weekends) ====
 def get_next_trading_day(date, days_ahead):
@@ -103,7 +103,7 @@ days_until_friday = (4 - start_weekly.weekday()) % 7
 if days_until_friday == 0:
     days_until_friday = 7
 next_friday = start_weekly + dt.timedelta(days=days_until_friday)
-end_date = dt.date(2025, 12, 31)
+end_date = dt.date(2026, 3, 31)
 fridays = pd.date_range(next_friday, end_date, freq="W-FRI").date
 
 weekly_df = pd.DataFrame({"expiration_day": fridays})
@@ -136,8 +136,25 @@ revised_df = sample_df[sample_df['DTE']>0][['expiration_day', 'DTE', 'lower', 'u
 revised_df['Expiration'] = revised_df['expiration_day'] + ' (' + revised_df['DTE'].astype(str) + 'D)'
 revised_df = revised_df.set_index('Expiration')[['lower', 'upper','expected move']].T
 
-# Convert table to HTML
-expected_moves_table_html = revised_df.to_html(classes='expected-moves-table', table_id='expected-moves-table', escape=False)
+# Convert table to HTML with proper styling (matching notebook)
+table_html = revised_df.to_html(border=0, classes='dataframe', escape=False)
+table_html = (
+    "<style>\\n"
+    ".dataframe {\\n"
+    "    border-collapse: collapse;  /* Single border for table */\\n"
+    "    width: 100%;\\n"
+    "}\\n"
+    ".dataframe th, .dataframe td {\\n"
+    "    border: 1px solid black;    /* Single line border */\\n"
+    "    padding: 5px;\\n"
+    "    text-align: center;\\n"
+    "}\\n"
+    ".dataframe th {\\n"
+    "    background-color: #f2f2f2;\\n"
+    "}\\n"
+    "</style>\\n"
+    + table_html
+)
 
 # ==== Calculate deltas ====
 current_price_rounded = round(stock_price)
@@ -365,16 +382,15 @@ plotly_html = fig.to_html(full_html=False, include_plotlyjs='cdn')
 html_template = (
     "<html>\\n"
     "<head>\\n"
-    "    <title>SPY Options Expected Move</title>\\n"
+    "    <title>Options Pricing Dashboard</title>\\n"
     '    <meta charset="utf-8">\\n'
+    "    <!-- Load MathJax for LaTeX support -->\\n"
+    "    <script src=\\"https://polyfill.io/v3/polyfill.min.js?features=es6\\"></script>\\n"
+    "    <script id=\\"MathJax-script\\" async\\n"
+    "      src=\\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\\"></script>\\n"
     "    <style>\\n"
     "        body { font-family: Arial; margin: 40px; }\\n"
     "        nav a { text-decoration: none; color: #0077b5; }\\n"
-    "        .expected-moves-table { border-collapse: collapse; margin: 20px 0; width: 100%; }\\n"
-    "        .expected-moves-table th, .expected-moves-table td { border: 1px solid #ddd; padding: 8px; text-align: right; }\\n"
-    "        .expected-moves-table th { background-color: #f2f2f2; font-weight: bold; }\\n"
-    "        .expected-moves-table tr:nth-child(even) { background-color: #f9f9f9; }\\n"
-    "        .table-container { margin: 30px 0; overflow-x: auto; }\\n"
     "    </style>\\n"
     "</head>\\n"
     "<body>\\n"
@@ -382,19 +398,41 @@ html_template = (
     "    <!-- Load Navbar -->\\n"
     '    <div id="navbar-placeholder"></div>\\n'
     "\\n"
-    "    <h1>📊 SPY Options Expected Move</h1>\\n"
-    "\\n"
-    "    <!-- Insert Plotly chart -->\\n"
+    "    <div class=\\"content\\">\\n"
+    "        <h2>Probability Analysis: Tools for SPY Options Trading</h2>\\n"
     + plotly_html + "\\n"
     "\\n"
-    "    <h2>Expected Moves Table</h2>\\n"
-    "    <div class=\\"table-container\\">\\n"
-    + expected_moves_table_html + "\\n"
-    "    </div>\\n"
+    "        <div style=\\"text-align:center; margin-top:10px; color:gray; font-size:1.2em;\\">\\n"
+    "            <i>Hover over any point on the chart to see the probability of expiring above that strike price!</i>\\n"
+    "        </div>\\n"
     "\\n"
-    '    <footer style="margin-top:50px; font-size:14px; color:gray;">\\n'
-    "        Created by Nianguang Zhao | Hosted on GitHub Pages\\n"
-    "    </footer>\\n"
+    "        <h3>Expected Move Formula</h3>\\n"
+    "        <p>\\n"
+    "            \\\\\\( EM = S \\\\times \\\\sigma \\\\times std \\\\times \\\\sqrt{{\\\\tfrac{{DTE}}{{365}}}} \\\\\\)\\n"
+    "        </p>\\n"
+    "\\n"
+    "        <ul>\\n"
+    "            <li><b>Volatility σ</b>: VIX as the proxy value for SPY options pricing.</li>\\n"
+    "            <li><b>Probability Analysis</b>: The probability of expiring above one strike price on a certain day is measured by option deltas.</li>\\n"
+    "        </ul>\\n"
+    "\\n"
+    "        <h2>SPY Expected Move</h2>\\n"
+    + table_html + "\\n"
+    "\\n"
+    "        <div style=\\"margin-top:25px; font-size:1.2em;\\">\\n"
+    "            <b>Nianguang Zhao '25G</b>, Master's in Financial Engineering at Lehigh University | Aspiring Quant | Cleared CFA Level 1\\n"
+    "        </div>\\n"
+    "\\n"
+    "        <div style=\\"text-align:center; margin-top:30px;\\">\\n"
+    "            <a href=\\"https://www.linkedin.com/in/nianguang-zhao/\\" target=\\"_blank\\" style=\\"text-decoration:none;\\">\\n"
+    "                <img src=\\"https://cdn-icons-png.flaticon.com/512/174/174857.png\\"\\n"
+    "                     alt=\\"LinkedIn\\"\\n"
+    "                     width=\\"30\\" height=\\"30\\"\\n"
+    "                     style=\\"vertical-align:middle; margin-right:8px;\\">\\n"
+    "                <span style=\\"font-size:1em; color:#0077b5;\\">Connect with me on LinkedIn</span>\\n"
+    "            </a>\\n"
+    "        </div>\\n"
+    "    </div>\\n"
     "\\n"
     "    <script>\\n"
     "        // Load navbar.html into the placeholder\\n"
