@@ -103,7 +103,7 @@ days_until_friday = (4 - start_weekly.weekday()) % 7
 if days_until_friday == 0:
     days_until_friday = 7
 next_friday = start_weekly + dt.timedelta(days=days_until_friday)
-end_date = dt.date(2026, 6, 30)
+end_date = dt.date(2026, 9, 30)
 fridays = pd.date_range(next_friday, end_date, freq="W-FRI").date
 
 weekly_df = pd.DataFrame({"expiration_day": fridays})
@@ -393,7 +393,6 @@ html_template = (
     "      }\\n"
     "    };\\n"
     "    </script>\\n"
-    "    <script src=\\"https://polyfill.io/v3/polyfill.min.js?features=es6\\"></script>\\n"
     "    <script id=\\"MathJax-script\\" async\\n"
     "      src=\\"https://cdn.jsdelivr.net/npm/mathjax@3/es5/tex-mml-chtml.js\\"></script>\\n"
     "    <style>\\n"
@@ -537,4 +536,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
