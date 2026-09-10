@@ -103,7 +103,7 @@ days_until_friday = (4 - start_weekly.weekday()) % 7
 if days_until_friday == 0:
     days_until_friday = 7
 next_friday = start_weekly + dt.timedelta(days=days_until_friday)
-end_date = dt.date(2026, 9, 30)
+end_date = dt.date(2026, 12, 31)
 fridays = pd.date_range(next_friday, end_date, freq="W-FRI").date
 
 weekly_df = pd.DataFrame({"expiration_day": fridays})
