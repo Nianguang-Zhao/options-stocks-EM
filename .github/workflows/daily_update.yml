@@ -1,6 +1,15 @@
 name: Daily HTML Update
 
 on:
+  push:
+    branches:
+      - main
+    paths:
+      - update_html.py
+      - options_stock_expected_move.ipynb
+      - stock_tracker.ipynb
+      - requirements.txt
+      - .github/workflows/daily_update.yml
   schedule:
     # Run daily at 9:00 AM UTC (adjust timezone as needed)
     - cron: '0 9 * * *'
